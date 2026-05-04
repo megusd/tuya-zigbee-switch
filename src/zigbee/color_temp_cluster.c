@@ -19,26 +19,39 @@ static zigbee_color_temp_cluster *ct_cluster_by_endpoint[10];
 
 /* ---- Scaling helpers ------------------------------------------------------- */
 
+static uint8_t clamp_to_even_0_100(uint8_t v) {
+    if (v > 100u) v = 100u;
+    if (v & 0x01u) {
+        /* Nearest even, ties rounded up. */
+        v = (uint8_t)(v + 1u);
+        if (v > 100u) v = 100u;
+    }
+    return v;
+}
+
 /**
- * Map DP10 (10-100) → ZCL CurrentLevel (0-254).
- * Values below 10 are clamped to 0.
+ * Map DP10 (0-100, step=2) → ZCL CurrentLevel (0-254).
  */
 static uint8_t dp10_to_level(uint8_t dp10) {
-    if (dp10 <= 10u) return 0u;
-    if (dp10 >= 100u) return 254u;
-    return (uint8_t)(((uint16_t)(dp10 - 10u) * 254u) / 90u);
+    uint8_t norm = clamp_to_even_0_100(dp10);
+    return (uint8_t)(((uint16_t)norm * 254u + 50u) / 100u);
 }
 
 /**
  * Map DP11 (0-100) → mireds.
- * DP11=0 → warm (370 mired), DP11=100 → cool (154 mired).
- *   mireds = 370 - dp11 * (370-154) / 100
+ * Direction depends on TUYA_DP11_WARM_AT_100.
  */
 static uint16_t dp11_to_mireds(uint8_t dp11) {
-    if (dp11 >= 100u) return LIGHT_COLOR_TEMP_COOL_MIREDS;
+    uint8_t norm = clamp_to_even_0_100(dp11);
+#if TUYA_DP11_WARM_AT_100
+    return (uint16_t)(LIGHT_COLOR_TEMP_COOL_MIREDS +
+                      ((uint16_t)norm * (LIGHT_COLOR_TEMP_WARM_MIREDS -
+                                         LIGHT_COLOR_TEMP_COOL_MIREDS) + 50u) / 100u);
+#else
     return (uint16_t)(LIGHT_COLOR_TEMP_WARM_MIREDS -
-                      (uint16_t)dp11 * (LIGHT_COLOR_TEMP_WARM_MIREDS -
-                                        LIGHT_COLOR_TEMP_COOL_MIREDS) / 100u);
+                      ((uint16_t)norm * (LIGHT_COLOR_TEMP_WARM_MIREDS -
+                                         LIGHT_COLOR_TEMP_COOL_MIREDS) + 50u) / 100u);
+#endif
 }
 
 /* ---- ZCL command callbacks ----------------------------------------------- */

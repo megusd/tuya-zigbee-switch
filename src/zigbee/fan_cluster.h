@@ -39,18 +39,25 @@
 /* ZCL attribute IDs */
 #define ZCL_ATTR_FAN_MODE          0x0000u
 #define ZCL_ATTR_FAN_MODE_SEQUENCE 0x0001u
+/* Manufacturer-specific custom attribute used for DP4 fan direction. */
+#define ZCL_ATTR_FAN_DIRECTION_CUSTOM 0xFC00u
+
+#define TUYA_FAN_DIRECTION_FORWARD 0x00u
+#define TUYA_FAN_DIRECTION_REVERSE 0x01u
 
 /* Number of attributes exposed */
-#define FAN_CLUSTER_ATTR_COUNT     2u
+#define FAN_CLUSTER_ATTR_COUNT     3u
 
 typedef struct {
     uint8_t              endpoint;
     uint8_t              fan_mode;           /* current FanMode value */
     uint8_t              fan_mode_sequence;  /* always 0x04 */
+    uint8_t              fan_direction;      /* 0=forward, 1=reverse */
     hal_zigbee_attribute attr_infos[FAN_CLUSTER_ATTR_COUNT];
 
     /* Callbacks fired when the host changes the fan mode */
     void (*on_mode_change)(uint8_t new_mode);
+    void (*on_direction_change)(uint8_t new_direction);
 } zigbee_fan_cluster;
 
 /**
@@ -75,5 +82,8 @@ void fan_cluster_callback_attr_write_trampoline(uint8_t endpoint,
  */
 void fan_cluster_update_from_dp(zigbee_fan_cluster *cluster,
                                 bool dp1_on, uint8_t dp3_speed);
+
+void fan_cluster_update_direction_from_dp(zigbee_fan_cluster *cluster,
+                                          uint8_t dp4_direction);
 
 #endif /* _FAN_CLUSTER_H_ */

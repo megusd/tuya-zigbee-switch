@@ -11,12 +11,14 @@
  *
  * Tuya MCU DP mapping:
  *   DP1  (bool)  → fan on/off
+ *   DP2  (enum)  → fan mode (nature/sleep), currently unimplemented
  *   DP3  (enum)  → fan speed 1-6
- *   DP4  (enum)  → fan direction (ignored for ZCL; stored locally)
+ *   DP4  (enum)  → fan direction 0=forward, 1=reverse (custom attr on EP1)
  *   DP9  (bool)  → light on/off
- *   DP10 (value) → light brightness 10-100 → ZCL level 0-254
- *   DP11 (value) → light color temp 0-100  → ZCL mireds 370-154
- *   DP102/103    → unknown/sleep timer (explicitly ignored)
+ *   DP10 (value) → light brightness 0-100, step=2 → ZCL level 0-254
+ *   DP11 (value) → light color temp 0-100, step=2 → ZCL mireds 154-370
+ *                  direction controlled by TUYA_DP11_WARM_AT_100
+ *   DP102/103    → fan countdown/timer (explicitly ignored)
  */
 
 #include "fanlight_init.h"
@@ -69,9 +71,20 @@ static uint8_t fan_speed = 1u;  /* 1-6 */
 
 static void on_dp_received(uint8_t dp_id, uint8_t dp_type, int32_t value);
 static void on_fan_mode_change(uint8_t new_mode);
+static void on_fan_direction_change(uint8_t new_direction);
 static void on_light_onoff_change(bool on);
 static void on_light_level_change(uint8_t level_0_254);
 static void on_light_color_temp_change(uint16_t mireds);
+
+static uint8_t clamp_to_even_0_100(uint8_t v) {
+    if (v > 100u) v = 100u;
+    if (v & 0x01u) {
+        /* Nearest even, ties rounded up. */
+        v = (uint8_t)(v + 1u);
+        if (v > 100u) v = 100u;
+    }
+    return v;
+}
 
 /* ========================================================================== */
 /* MCU → Zigbee  (DP callbacks)                                                */
@@ -84,14 +97,18 @@ static void on_dp_received(uint8_t dp_id, uint8_t dp_type, int32_t value) {
         fan_cluster_update_from_dp(&g_fan_cluster, fan_on, fan_speed);
         break;
 
+    case TUYA_DP_FAN_MODE:
+        printf("fanlight: fan mode DP2=%d (nature/sleep, unimplemented)\r\n",
+               (int)value);
+        break;
+
     case TUYA_DP_FAN_SPEED:
         fan_speed = (uint8_t)value;
         fan_cluster_update_from_dp(&g_fan_cluster, fan_on, fan_speed);
         break;
 
     case TUYA_DP_FAN_DIRECTION:
-        /* Not exposed via ZCL in this implementation; log only */
-        printf("fanlight: fan dir = %d\r\n", (int)value);
+        fan_cluster_update_direction_from_dp(&g_fan_cluster, (uint8_t)value);
         break;
 
     case TUYA_DP_LIGHT_ONOFF:
@@ -135,27 +152,44 @@ static void on_fan_mode_change(uint8_t new_mode) {
     }
 }
 
+static void on_fan_direction_change(uint8_t new_direction) {
+    uint8_t dp4 = (new_direction == TUYA_FAN_DIRECTION_REVERSE)
+                      ? TUYA_FAN_DIRECTION_REVERSE
+                      : TUYA_FAN_DIRECTION_FORWARD;
+    tuya_mcu_send_enum(TUYA_DP_FAN_DIRECTION, dp4);
+}
+
 static void on_light_onoff_change(bool on) {
     tuya_mcu_send_bool(TUYA_DP_LIGHT_ONOFF, on);
 }
 
 static void on_light_level_change(uint8_t level_0_254) {
-    /* Scale 0-254 → 10-100 (MCU minimum is 10). */
-    uint8_t dp10 = (uint8_t)(10u + ((uint16_t)level_0_254 * 90u / 254u));
+    /* Scale 0-254 -> 0-100 and quantize to official step=2. */
+    uint8_t dp10 = (uint8_t)(((uint16_t)level_0_254 * 100u + 127u) / 254u);
+    dp10 = clamp_to_even_0_100(dp10);
+
+    /* Light ON should not use DP10=0 as requested by official behavior notes. */
+    if (g_light_cluster.on_off && dp10 == 0u) {
+        dp10 = 2u;
+    }
     tuya_mcu_send_value(TUYA_DP_LIGHT_LEVEL, (int32_t)dp10);
 }
 
 static void on_light_color_temp_change(uint16_t mireds) {
-    /* mireds 370 → dp11=0, mireds 154 → dp11=100 */
-    uint8_t dp11;
-    if (mireds >= LIGHT_COLOR_TEMP_WARM_MIREDS) {
-        dp11 = 0u;
-    } else if (mireds <= LIGHT_COLOR_TEMP_COOL_MIREDS) {
-        dp11 = 100u;
-    } else {
-        dp11 = (uint8_t)((LIGHT_COLOR_TEMP_WARM_MIREDS - mireds) * 100u /
-                         (LIGHT_COLOR_TEMP_WARM_MIREDS - LIGHT_COLOR_TEMP_COOL_MIREDS));
-    }
+    uint16_t clamped = mireds;
+    if (clamped < LIGHT_COLOR_TEMP_COOL_MIREDS) clamped = LIGHT_COLOR_TEMP_COOL_MIREDS;
+    if (clamped > LIGHT_COLOR_TEMP_WARM_MIREDS) clamped = LIGHT_COLOR_TEMP_WARM_MIREDS;
+
+#if TUYA_DP11_WARM_AT_100
+    uint8_t dp11 = (uint8_t)(((uint32_t)(clamped - LIGHT_COLOR_TEMP_COOL_MIREDS) * 100u +
+                              ((LIGHT_COLOR_TEMP_WARM_MIREDS - LIGHT_COLOR_TEMP_COOL_MIREDS) / 2u)) /
+                             (LIGHT_COLOR_TEMP_WARM_MIREDS - LIGHT_COLOR_TEMP_COOL_MIREDS));
+#else
+    uint8_t dp11 = (uint8_t)(((uint32_t)(LIGHT_COLOR_TEMP_WARM_MIREDS - clamped) * 100u +
+                              ((LIGHT_COLOR_TEMP_WARM_MIREDS - LIGHT_COLOR_TEMP_COOL_MIREDS) / 2u)) /
+                             (LIGHT_COLOR_TEMP_WARM_MIREDS - LIGHT_COLOR_TEMP_COOL_MIREDS));
+#endif
+    dp11 = clamp_to_even_0_100(dp11);
     tuya_mcu_send_value(TUYA_DP_LIGHT_COLORTEMP, (int32_t)dp11);
 }
 
@@ -212,6 +246,7 @@ void fanlight_app_init(void) {
 
     /* Fan Control cluster */
     g_fan_cluster.on_mode_change = on_fan_mode_change;
+    g_fan_cluster.on_direction_change = on_fan_direction_change;
     fan_cluster_add_to_endpoint(&g_fan_cluster, &endpoints[0]);
 
     /* ---- Build endpoint 2: Color Temperature Light ---- */

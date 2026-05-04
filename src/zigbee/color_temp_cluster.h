@@ -3,14 +3,16 @@
  *
  * Manages three clusters on endpoint 2 of the fan+light device:
  *   - On/Off      (0x0006) — mapped to DP9
- *   - Level       (0x0008) — CurrentLevel 0-254 mapped from DP10 (10-100)
+ *   - Level       (0x0008) — CurrentLevel 0-254 mapped from DP10 (0-100, step=2)
  *   - Color Ctrl  (0x0300) — ColorTemperatureMireds 154-370 mapped from DP11
  *
  * Scaling:
- *   Brightness : DP10 (10-100) → ZCL level = (dp10 - 10) * 254 / 90
- *   Color temp : DP11 (0-100) → mireds = 370 - dp11 * (370-154) / 100
- *                              = 370 - dp11 * 216 / 100
- *              (DP11=0 → 370 mireds warm, DP11=100 → 154 mireds cool)
+ *   Brightness : DP10 (0-100, step=2) → ZCL level = dp10 * 254 / 100
+ *   Color temp : DP11 (0-100, step=2) is mapped to 154-370 mireds.
+ *
+ * Compile-time behavior switch for DP11 direction:
+ *   TUYA_DP11_WARM_AT_100 = 0 (default): DP11=0 warm,   DP11=100 cool
+ *   TUYA_DP11_WARM_AT_100 = 1          : DP11=0 cool,   DP11=100 warm
  */
 
 #ifndef _COLOR_TEMP_CLUSTER_H_
@@ -52,6 +54,10 @@
 /* Color temperature limits (mireds) */
 #define LIGHT_COLOR_TEMP_WARM_MIREDS  370u    /* 2700 K */
 #define LIGHT_COLOR_TEMP_COOL_MIREDS  154u    /* ~6493 K */
+
+#ifndef TUYA_DP11_WARM_AT_100
+#define TUYA_DP11_WARM_AT_100 0
+#endif
 
 /* Number of attributes per cluster */
 #define ONOFF_CLUSTER_ATTR_COUNT      1u
@@ -113,13 +119,13 @@ void color_temp_cluster_update_onoff(zigbee_color_temp_cluster *cluster,
                                      bool on);
 
 /**
- * Update brightness from DP10 (10-100 scale) and report to network.
+ * Update brightness from DP10 (0-100, step=2) and report to network.
  */
 void color_temp_cluster_update_level_dp(zigbee_color_temp_cluster *cluster,
                                         uint8_t dp10_value);
 
 /**
- * Update color temperature from DP11 (0-100 scale) and report to network.
+ * Update color temperature from DP11 (0-100, step=2) and report to network.
  */
 void color_temp_cluster_update_color_temp_dp(zigbee_color_temp_cluster *cluster,
                                              uint8_t dp11_value);

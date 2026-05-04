@@ -45,13 +45,14 @@
 
 /* DP IDs for the fan+light MCU */
 #define TUYA_DP_FAN_ONOFF      1u
+#define TUYA_DP_FAN_MODE       2u   /* nature/sleep (known, currently unimplemented) */
 #define TUYA_DP_FAN_SPEED      3u
 #define TUYA_DP_FAN_DIRECTION  4u
 #define TUYA_DP_LIGHT_ONOFF    9u
 #define TUYA_DP_LIGHT_LEVEL    10u
 #define TUYA_DP_LIGHT_COLORTEMP 11u
-#define TUYA_DP_UNKNOWN_102    102u
-#define TUYA_DP_UNKNOWN_103    103u
+#define TUYA_DP_UNKNOWN_102    102u /* fan_countdown_set */
+#define TUYA_DP_UNKNOWN_103    103u /* fan_countdown_set */
 
 /* Heartbeat period (ms) */
 #define TUYA_HEARTBEAT_INTERVAL_MS  3000u

@@ -16,16 +16,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Map from FanMode (ZCL) to DP3 speed (1-6).  Index = FanMode value. */
-static const uint8_t fan_mode_to_dp3[] = {
-    /* 0x00 Off          */  0u,  /* DP1=off, DP3 don't-care */
-    /* 0x01 Low          */  1u,
-    /* 0x02 Medium-Low   */  2u,
-    /* 0x03 Medium       */  3u,
-    /* 0x04 Medium-High  */  4u,
-    /* 0x05 High         */  5u,
-    /* 0x06 On (max)     */  6u,
-};
 #define FAN_MODE_MAX    0x06u
 
 /* Trampoline table — indexed by endpoint number */
@@ -49,6 +39,19 @@ void fan_cluster_callback_attr_write(uint8_t endpoint, uint16_t attribute_id) {
         }
         hal_zigbee_notify_attribute_changed(endpoint, ZCL_CLUSTER_FAN_CONTROL,
                                             ZCL_ATTR_FAN_MODE);
+    } else if (attribute_id == ZCL_ATTR_FAN_DIRECTION_CUSTOM) {
+        uint8_t new_direction = cluster->fan_direction;
+        if (new_direction != TUYA_FAN_DIRECTION_REVERSE) {
+            new_direction = TUYA_FAN_DIRECTION_FORWARD;
+            cluster->fan_direction = new_direction;
+        }
+
+        printf("fan_cluster: direction write -> %u\r\n", new_direction);
+        if (cluster->on_direction_change != NULL) {
+            cluster->on_direction_change(new_direction);
+        }
+        hal_zigbee_notify_attribute_changed(endpoint, ZCL_CLUSTER_FAN_CONTROL,
+                                            ZCL_ATTR_FAN_DIRECTION_CUSTOM);
     }
 }
 
@@ -79,12 +82,15 @@ void fan_cluster_add_to_endpoint(zigbee_fan_cluster *cluster,
     /* Default: off, 6-speed sequence */
     cluster->fan_mode          = ZCL_FAN_MODE_OFF;
     cluster->fan_mode_sequence = ZCL_FAN_MODE_SEQ_LOW_MED_HIGH_AUTO;
+    cluster->fan_direction     = TUYA_FAN_DIRECTION_FORWARD;
 
     /* Attribute table */
     SETUP_ATTR(0, ZCL_ATTR_FAN_MODE, ZCL_DATA_TYPE_ENUM8,
                ATTR_WRITABLE, cluster->fan_mode);
     SETUP_ATTR(1, ZCL_ATTR_FAN_MODE_SEQUENCE, ZCL_DATA_TYPE_ENUM8,
                ATTR_READONLY, cluster->fan_mode_sequence);
+    SETUP_ATTR(2, ZCL_ATTR_FAN_DIRECTION_CUSTOM, ZCL_DATA_TYPE_ENUM8,
+               ATTR_WRITABLE, cluster->fan_direction);
 
     /* Register cluster on endpoint */
     endpoint->clusters[endpoint->cluster_count].cluster_id      = ZCL_CLUSTER_FAN_CONTROL;
@@ -112,5 +118,19 @@ void fan_cluster_update_from_dp(zigbee_fan_cluster *cluster,
         hal_zigbee_notify_attribute_changed(cluster->endpoint,
                                             ZCL_CLUSTER_FAN_CONTROL,
                                             ZCL_ATTR_FAN_MODE);
+    }
+}
+
+void fan_cluster_update_direction_from_dp(zigbee_fan_cluster *cluster,
+                                          uint8_t dp4_direction) {
+    uint8_t normalized = (dp4_direction == TUYA_FAN_DIRECTION_REVERSE)
+                             ? TUYA_FAN_DIRECTION_REVERSE
+                             : TUYA_FAN_DIRECTION_FORWARD;
+
+    if (normalized != cluster->fan_direction) {
+        cluster->fan_direction = normalized;
+        hal_zigbee_notify_attribute_changed(cluster->endpoint,
+                                            ZCL_CLUSTER_FAN_CONTROL,
+                                            ZCL_ATTR_FAN_DIRECTION_CUSTOM);
     }
 }
