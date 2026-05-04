@@ -25,8 +25,20 @@ Result: success, binary generated at `build/telink/bin/ztu_fanlight.bin`.
 ### Zigbee control path
 
 - Fan Control attribute writes are wired into the global dispatcher.
-- Fan direction (DP4) is exposed as a writable custom attribute on Fan Control cluster (EP1).
-- Fan direction writes from coordinator now map back to Tuya DP4.
+- Additional mode endpoints implemented following project endpoint pattern:
+	- EP3: Winter Mode (On/Off Output) -> DP4
+	- EP4: Nature Mode (On/Off Output) -> DP2=1
+	- EP5: Sleep Mode (On/Off Output) -> DP2=2
+- EP4 and EP5 are mutually exclusive in local state.
+- MCU DP updates now drive endpoint state updates for EP3/EP4/EP5.
+
+### Endpoint model
+
+- EP1: Fan
+- EP2: Light
+- EP3: Winter Mode
+- EP4: Nature Mode
+- EP5: Sleep Mode
 
 ### Tuya DP mapping alignment (official cloud schema)
 
@@ -38,18 +50,17 @@ Result: success, binary generated at `build/telink/bin/ztu_fanlight.bin`.
 
 ## Known unimplemented / intentionally deferred
 
-- DP2 fan mode (`nature`, `sleep`) recognized and logged, not yet mapped to ZCL behavior.
 - DP102/DP103 timer/countdown remains intentionally ignored.
 
 ## Open risks / next validation
 
 - Physical verification needed for DP11 warm/cool direction on real hardware.
-- Coordinator-side UX validation needed for custom fan direction attribute (Z2M/ZHA exposure).
+- Coordinator-side UX validation needed for EP3/EP4/EP5 entity discovery and naming in Z2M/ZHA.
 - No automated tests yet for DP<->ZCL conversion edge cases.
 
 ## Suggested next steps
 
 1. Verify DP11 direction physically and lock default for `TUYA_DP11_WARM_AT_100`.
-2. Add optional handling for DP2 (`nature`, `sleep`) as a custom mode attribute/state.
-3. Run end-to-end pairing/control checks on both ZHA and Zigbee2MQTT.
-4. Add unit tests for DP10/DP11 quantization and boundary mapping.
+2. Run end-to-end pairing/control checks on both ZHA and Zigbee2MQTT for all 5 endpoints.
+3. Add unit tests for DP10/DP11 quantization and boundary mapping.
+4. Add tests for DP2/DP4 to endpoint state synchronization and mutual exclusivity.
