@@ -5326,6 +5326,33 @@ SWITCH_ZEMISMART_2_TS0012:
   info: Supported
   threads: https://github.com/romasku/tuya-zigbee-switch/issues/22
   store: https://www.zemismart.com/products/kes-606us-z?VariantsId=14160
+MODULE_ZTU_FANLIGHT:
+  human_name: Tuya ZTU Fan+Light (custom)
+  category: module
+  power: mains
+  neutral: null
+  output: nothing
+  device_type: router
+  stock_model_name: DCF4002BHA
+  stock_manufacturer_name: _DCF4002BHA_yf-2d-15w
+  stock_converter_manufacturer: Tuya
+  stock_converter_model: WR4
+  override_z2m_device: null
+  tuya_module: ZTU
+  mcu_family: Telink
+  mcu: TLSR8258
+  config_str: TuyaFanLight;ZTU-FanLight;
+  alt_config_str: null
+  old_manufacturer_names: null
+  old_zb_models: null
+  stock_manufacturer_id: null
+  stock_image_type: null
+  firmware_image_type: 43600
+  build: yes
+  status: in_progress
+  info: Custom fan+light MCU bridge via Tuya UART protocol
+  threads: null
+  store: null
 SWITCH_ZEMISMART_TS0601_6GANG:
   human_name: Zemismart TB26-6
   category: switch

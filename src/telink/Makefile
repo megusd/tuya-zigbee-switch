@@ -140,6 +140,8 @@ TELINK_SOURCES := \
 	custom_zcl/zcl_multistate_input.c \
 	custom_zcl/zcl_onoff_configuration.c \
 	custom_zcl/zcl_cover_switch_config.c \
+	custom_zcl/zcl_color_control.c \
+	custom_zcl/zcl_fan_control.c \
 	patch_sdk/drv_nv.c
 
 # Common source files (shared with Silicon Labs build)
@@ -163,7 +165,24 @@ COMMON_SOURCES := \
 	$(SRC_DIR)/zigbee/switch_cluster.c \
 	$(SRC_DIR)/zigbee/cover_switch_cluster.c \
 	$(SRC_DIR)/zigbee/cover_cluster.c \
-	$(SRC_DIR)/zigbee/battery_cluster.c 
+	$(SRC_DIR)/zigbee/battery_cluster.c
+
+# ---- Fan+Light MCU bridge sources (used only for FANLIGHT_BUILD=1) ---------
+FANLIGHT_EXTRA_SOURCES := \
+	$(SRC_DIR)/fanlight/app_fanlight.c \
+	$(SRC_DIR)/fanlight/fanlight_init.c \
+	$(SRC_DIR)/base_components/tuya_mcu.c \
+	$(SRC_DIR)/zigbee/fan_cluster.c \
+	$(SRC_DIR)/zigbee/color_temp_cluster.c
+
+# When FANLIGHT_BUILD=1 replace app.c + config_parser.c with fanlight sources
+ifeq ($(FANLIGHT_BUILD),1)
+COMMON_SOURCES := \
+	$(filter-out $(SRC_DIR)/app.c $(SRC_DIR)/device_config/config_parser.c, \
+	             $(COMMON_SOURCES)) \
+	$(FANLIGHT_EXTRA_SOURCES)
+DEVICE_DEFS := $(DEVICE_DEFS) -DTUYA_MCU_FANLIGHT=1
+endif
 
 # All application sources
 ALL_TELINK_SOURCES := $(TELINK_SOURCES) $(COMMON_SOURCES)
@@ -336,4 +355,34 @@ help:
 	@echo "  BIN: $(BIN_FILE)"
 	@echo "  LST: $(LST_FILE)"
 
-.PHONY: all build clean ota flash restart wipe flasher help
+.PHONY: all build clean ota flash restart wipe flasher help ztu_fanlight
+
+# ============================================================================
+# Fan+Light MCU bridge target (MODULE_ZTU_FANLIGHT)
+# Invoke:  make ztu_fanlight
+#          make ztu_fanlight DEBUG=1   # enable UART debug output
+# ============================================================================
+ZTU_FANLIGHT_CONFIG_STR := TuyaFanLight;ZTU-FanLight;
+ZTU_FANLIGHT_IMAGE_TYPE := 43600
+
+ztu_fanlight:
+	$(MAKE) all \
+	    FANLIGHT_BUILD=1 \
+	    FIRMWARE_BASENAME=ztu_fanlight \
+	    DEVICE_TYPE=router \
+	    CONFIG_STR="$(ZTU_FANLIGHT_CONFIG_STR)" \
+	    IMAGE_TYPE=$(ZTU_FANLIGHT_IMAGE_TYPE) \
+	    MANUFACTURER_ID=0
+
+ztu_fanlight_ota: ztu_fanlight
+	$(MAKE) ota \
+	    FANLIGHT_BUILD=1 \
+	    FIRMWARE_BASENAME=ztu_fanlight \
+	    DEVICE_TYPE=router \
+	    CONFIG_STR="$(ZTU_FANLIGHT_CONFIG_STR)" \
+	    IMAGE_TYPE=$(ZTU_FANLIGHT_IMAGE_TYPE) \
+	    OTA_IMAGE_TYPE=$(ZTU_FANLIGHT_IMAGE_TYPE) \
+	    MANUFACTURER_ID=0
+
+ztu_fanlight_flash: ztu_fanlight
+	$(MAKE) flash FIRMWARE_BASENAME=ztu_fanlight

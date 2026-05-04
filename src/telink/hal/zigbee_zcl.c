@@ -1,7 +1,9 @@
 #pragma pack(push, 1)
 #include "tl_common.h"
 #include "zb_api.h"
+#include "zcl_color_control.h"
 #include "zcl_cover_switch_config.h"
+#include "zcl_fan_control.h"
 #include "zcl_include.h"
 #include "zcl_multistate_input.h"
 #include "zcl_onoff_configuration.h"
@@ -61,6 +63,12 @@ static cluster_registerFunc_t get_register_func_by_cluster_id(u16 cluster_id) {
     }
     if (cluster_id == ZCL_CLUSTER_GEN_POLL_CONTROL) {
         return zcl_pollCtrl_register;
+    }
+    if (cluster_id == ZCL_CLUSTER_HVAC_FAN_CONTROL) {
+        return zcl_fan_control_register;
+    }
+    if (cluster_id == ZCL_CLUSTER_LIGHTING_COLOR_CONTROL) {
+        return zcl_color_control_register;
     }
     return NULL;
 }
@@ -126,6 +134,14 @@ static status_t cmd_callback_poll_control(zclIncomingAddrInfo_t *pAddrInfo,
                         pInMsg->pData, pInMsg->dataLen);
 }
 
+static status_t cmd_callback_color_control(zclIncomingAddrInfo_t *pAddrInfo,
+                                            u8 cmdId, void *cmdPayload) {
+    zclIncoming_t *pInMsg = cmd_incoming_from_addr_info(pAddrInfo);
+
+    return cmd_callback(pAddrInfo->dstEp, ZCL_CLUSTER_LIGHTING_COLOR_CONTROL,
+                        cmdId, pInMsg->pData, pInMsg->dataLen);
+}
+
 static cluster_forAppCb_t get_cmd_callback_by_cluster_id(u16 cluster_id) {
     if (cluster_id == ZCL_CLUSTER_GEN_LEVEL_CONTROL) { // Level Control cluster
         return cmd_callback_level_control;
@@ -139,6 +155,10 @@ static cluster_forAppCb_t get_cmd_callback_by_cluster_id(u16 cluster_id) {
     if (cluster_id == ZCL_CLUSTER_GEN_POLL_CONTROL) {
         return cmd_callback_poll_control;
     }
+    if (cluster_id == ZCL_CLUSTER_LIGHTING_COLOR_CONTROL) {
+        return cmd_callback_color_control;
+    }
+    /* Fan Control (0x0202) uses attribute writes only, no command callback needed */
     return NULL;
 }
 
