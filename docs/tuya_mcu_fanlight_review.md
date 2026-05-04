@@ -2,19 +2,19 @@
 
 Date: 2026-05-04
 Branch: tuya-mcu-fan-light
-Scope reviewed: current local working tree changes in this branch
+Scope reviewed: current branch changes, updated after fixing Fan Control attribute dispatch
 
 ## Review findings
 
-### 1. High: Fan control writes from the coordinator will be ignored
+### 1. Resolved: Fan Control attribute writes are now wired into the global dispatcher
 
-The new fan implementation is built around writable `FanMode` attribute writes, but the global attribute-write dispatcher never forwards cluster `0x0202` writes to the new fan cluster callback.
+The branch now routes cluster `0x0202` writes through the existing global attribute-change callback path.
 
-- `src/zigbee/fan_cluster.c` defines `fan_cluster_callback_attr_write()` and exposes `ZCL_ATTR_FAN_MODE` as `ATTR_WRITABLE`.
-- `src/zigbee/general_commands.c` only routes writes for Basic, Switch Config, Cover Switch Config, On/Off, Window Covering, and Poll Control.
-- Result: Z2M/ZHA writes to Fan Control will update nothing on the MCU side, so fan speed/mode control is effectively broken.
+- `src/zigbee/general_commands.c` now forwards `ZCL_CLUSTER_FAN_CONTROL` writes.
+- `src/zigbee/fan_cluster.h` exposes a trampoline declaration matching the pattern used by other clusters.
+- `src/zigbee/fan_cluster.c` now provides the trampoline wrapper used by the dispatcher.
 
-Recommended fix: add Fan Control dispatch in `zigbee_on_attr_change()` and expose the callback in the fan cluster header with the same trampoline pattern used by other clusters.
+Result: coordinator writes to `FanMode` should now reach the MCU bridge callback path instead of being dropped at the dispatcher layer.
 
 ### 2. Medium: The documented endpoint topology does not match the registered clusters
 
@@ -58,10 +58,10 @@ Completed:
 - Basic Tuya UART frame handling exists.
 - MCU to Zigbee state mapping exists for fan on/off, speed, light on/off, brightness, and color temperature.
 - Zigbee to MCU command mapping exists for fan mode, on/off, level, and color temperature commands.
+- Fan Control attribute writes are wired into the global attribute-change path.
 
 Not complete yet:
 
-- Fan Control attribute writes are not wired into the global attribute-change path.
 - The documented endpoint model is not yet aligned with the actual cluster registration.
 - No successful local build was possible in this environment because the Telink compiler is missing.
 - No hardware validation, pairing validation, or coordinator validation was observed.
@@ -79,8 +79,7 @@ Build could not run here because `../../telink_tools/toolchain/tc32/bin/tc32-elf
 
 ## Suggested next steps
 
-1. Wire Fan Control writes through `src/zigbee/general_commands.c`.
-2. Align the endpoint comments with the actual cluster model, or add the missing Identify cluster(s).
-3. Build with the Telink toolchain present and fix any compile issues.
-4. Validate pairing and control from both Zigbee2MQTT and ZHA.
-5. Add targeted tests for DP-to-ZCL and ZCL-to-DP mapping where feasible.
+1. Align the endpoint comments with the actual cluster model, or add the missing Identify cluster(s).
+2. Build with the Telink toolchain present and fix any compile issues.
+3. Validate pairing and control from both Zigbee2MQTT and ZHA.
+4. Add targeted tests for DP-to-ZCL and ZCL-to-DP mapping where feasible.

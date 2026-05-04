@@ -52,6 +52,11 @@ void fan_cluster_callback_attr_write(uint8_t endpoint, uint16_t attribute_id) {
     }
 }
 
+void fan_cluster_callback_attr_write_trampoline(uint8_t endpoint,
+                                                uint16_t attribute_id) {
+    fan_cluster_callback_attr_write(endpoint, attribute_id);
+}
+
 /* Trampoline registered with the HAL */
 static hal_zigbee_cmd_result_t fan_cluster_cmd_trampoline(uint8_t endpoint,
                                                           uint16_t cluster_id,

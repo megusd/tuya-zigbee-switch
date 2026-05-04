@@ -65,6 +65,12 @@ void fan_cluster_add_to_endpoint(zigbee_fan_cluster *cluster,
                                  hal_zigbee_endpoint *endpoint);
 
 /**
+ * Forward writable Fan Control attribute changes from the global dispatcher.
+ */
+void fan_cluster_callback_attr_write_trampoline(uint8_t endpoint,
+                                                uint16_t attribute_id);
+
+/**
  * Update the cached FanMode attribute and report it to the network.
  * Call this when the MCU sends a new fan state via UART.
  *
