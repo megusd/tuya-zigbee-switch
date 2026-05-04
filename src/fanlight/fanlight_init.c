@@ -3,11 +3,11 @@
  *
  * Zigbee topology:
  *   Endpoint 1 — Fan  (HA profile 0x0104, device type 0x0203)
- *     Clusters: Basic (0x0000), Identify (0x0003), Fan Control (0x0202)
+ *     Clusters: Basic (0x0000), OTA (0x0019), Fan Control (0x0202)
  *
  *   Endpoint 2 — Color Temperature Light (device type 0x010C)
- *     Clusters: Basic (0x0000), Identify (0x0003),
- *               On/Off (0x0006), Level (0x0008), Color (0x0300)
+ *     Clusters: Basic (0x0000), On/Off (0x0006),
+ *               Level (0x0008), Color (0x0300)
  *
  * Tuya MCU DP mapping:
  *   DP1  (bool)  → fan on/off
@@ -46,8 +46,8 @@
 #define ZIGBEE_DEVICE_TYPE_COLOR_TEMP_LIGHT 0x010Cu
 
 /* ---- Static cluster / endpoint storage ----------------------------------- */
-#define MAX_EP1_CLUSTERS   4u   /* Basic + Identify + FanControl + OTA */
-#define MAX_EP2_CLUSTERS   6u   /* Basic + Identify + OnOff + Level + Color + OTA */
+#define MAX_EP1_CLUSTERS   3u   /* Basic + OTA + FanControl */
+#define MAX_EP2_CLUSTERS   4u   /* Basic + OnOff + Level + Color */
 #define TOTAL_ZCL_CLUSTERS (MAX_EP1_CLUSTERS + MAX_EP2_CLUSTERS)
 
 static hal_zigbee_cluster  clusters[TOTAL_ZCL_CLUSTERS];

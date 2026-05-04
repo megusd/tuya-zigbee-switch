@@ -19,14 +19,10 @@
 #ifndef _FAN_CLUSTER_H_
 #define _FAN_CLUSTER_H_
 
+#include "consts.h"
 #include "hal/zigbee.h"
 #include <stdbool.h>
 #include <stdint.h>
-
-/* ZCL Fan Control cluster ID — also defined in consts.h */
-#ifndef ZCL_CLUSTER_FAN_CONTROL
-#define ZCL_CLUSTER_FAN_CONTROL    0x0202u
-#endif
 
 /* FanMode attribute (0x0000) values */
 #define ZCL_FAN_MODE_OFF           0x00u

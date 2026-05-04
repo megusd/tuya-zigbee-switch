@@ -1,6 +1,4 @@
-#pragma pack(push, 1)
-#include "zcl_include.h"
-#pragma pack(pop)
+#include "zcl_fan_control.h"
 
 _CODE_ZCL_ status_t zcl_fan_control_register(u8 endpoint, u16 manuCode,
                                               u8 attrNum,

@@ -171,6 +171,7 @@ COMMON_SOURCES := \
 FANLIGHT_EXTRA_SOURCES := \
 	$(SRC_DIR)/fanlight/app_fanlight.c \
 	$(SRC_DIR)/fanlight/fanlight_init.c \
+	$(SRC_DIR)/fanlight/fanlight_compat.c \
 	$(SRC_DIR)/base_components/tuya_mcu.c \
 	$(SRC_DIR)/zigbee/fan_cluster.c \
 	$(SRC_DIR)/zigbee/color_temp_cluster.c
